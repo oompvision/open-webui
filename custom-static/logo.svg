@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="white">
+  <!-- AlumniHuddle Logo - White version -->
+  <!-- Stylized "A" with graduation cap swoosh -->
+
+  <!-- Main "A" shape -->
+  <path d="M50 10 L20 85 L32 85 L38 70 L62 70 L68 85 L80 85 L50 10 Z M50 30 L58 58 L42 58 L50 30 Z" fill="white"/>
+
+  <!-- Graduation cap swoosh going up and to the right -->
+  <path d="M55 20 Q70 5, 88 12 Q92 14, 90 18 Q85 10, 60 22 Q55 25, 55 20 Z" fill="white"/>
+
+  <!-- Tassel -->
+  <path d="M88 12 Q90 20, 85 28 Q84 30, 82 28 Q86 22, 85 14 Q85 12, 88 12 Z" fill="white"/>
+</svg>

@@ -190,7 +190,22 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     )
 
 
-def create_token(data: dict, expires_delta: Union[timedelta, None] = None) -> str:
+def create_token(
+    data: dict,
+    expires_delta: Union[timedelta, None] = None,
+    tenant_id: Optional[str] = None,
+) -> str:
+    """
+    Create a JWT token with optional tenant_id for multi-tenancy support.
+
+    Args:
+        data: Dictionary containing token payload (must include 'id' for user)
+        expires_delta: Optional expiration time
+        tenant_id: Optional tenant ID for multi-tenancy
+
+    Returns:
+        Encoded JWT token string
+    """
     payload = data.copy()
 
     if expires_delta:
@@ -199,6 +214,10 @@ def create_token(data: dict, expires_delta: Union[timedelta, None] = None) -> st
 
     jti = str(uuid.uuid4())
     payload.update({"jti": jti})
+
+    # Add tenant_id to token if provided (for multi-tenancy)
+    if tenant_id:
+        payload.update({"tenant_id": tenant_id})
 
     encoded_jwt = jwt.encode(payload, SESSION_SECRET, algorithm=ALGORITHM)
     return encoded_jwt

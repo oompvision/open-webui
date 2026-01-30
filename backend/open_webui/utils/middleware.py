@@ -106,6 +106,7 @@ from open_webui.utils.filter import (
 from open_webui.utils.code_interpreter import execute_code_jupyter
 from open_webui.utils.payload import apply_system_prompt_to_body
 from open_webui.utils.mcp.client import MCPClient
+from open_webui.utils.huddle_context import inject_huddle_context
 
 
 from open_webui.config import (
@@ -1339,6 +1340,11 @@ def apply_params_to_form_data(form_data, model):
         # If custom_params are provided, merge them into params
         params = deep_update(params, custom_params)
 
+    # Guard against None model
+    if model is None:
+        log.warning("apply_params_to_form_data: model is None, using default params handling")
+        model = {}
+
     if model.get("owned_by") == "ollama":
         # Ollama specific parameters
         form_data["options"] = params
@@ -1415,6 +1421,14 @@ async def process_chat_payload(request, form_data, user, metadata, model):
             )  # Required to handle system prompt variables
         except:
             pass
+
+    # AlumniHuddle: Inject huddle-specific context (mentor directory) into messages
+    try:
+        form_data["messages"] = inject_huddle_context(
+            request, form_data.get("messages", []), metadata
+        )
+    except Exception as e:
+        log.warning(f"Failed to inject huddle context: {e}")
 
     form_data = await convert_url_images_to_base64(form_data)
 
@@ -1807,12 +1821,9 @@ async def process_chat_payload(request, form_data, user, metadata, model):
 
     # Inject builtin tools for native function calling based on enabled features and model capability
     # Check if builtin_tools capability is enabled for this model (defaults to True if not specified)
-    builtin_tools_enabled = (
-        model.get("info", {})
-        .get("meta", {})
-        .get("capabilities", {})
-        .get("builtin_tools", True)
-    )
+    # Note: capabilities can be explicitly set to None, so we need to handle that case
+    capabilities = model.get("info", {}).get("meta", {}).get("capabilities") or {}
+    builtin_tools_enabled = capabilities.get("builtin_tools", True)
     if (
         metadata.get("params", {}).get("function_calling") == "native"
         and builtin_tools_enabled
@@ -1855,12 +1866,9 @@ async def process_chat_payload(request, form_data, user, metadata, model):
                 log.exception(e)
 
     # Check if file context extraction is enabled for this model (default True)
-    file_context_enabled = (
-        model.get("info", {})
-        .get("meta", {})
-        .get("capabilities", {})
-        .get("file_context", True)
-    )
+    # Note: capabilities can be explicitly set to None, so we need to handle that case
+    file_context_capabilities = model.get("info", {}).get("meta", {}).get("capabilities") or {}
+    file_context_enabled = file_context_capabilities.get("file_context", True)
 
     if file_context_enabled:
         try:

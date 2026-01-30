@@ -1,0 +1,103 @@
+services:
+  pipelines:
+    image: ghcr.io/open-webui/pipelines:main
+    container_name: alumnihuddle-pipelines
+    ports:
+      - "9099:9099"
+    volumes:
+      - pipelines:/app/pipelines
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - PIPELINES_URLS=https://raw.githubusercontent.com/open-webui/pipelines/main/examples/pipelines/providers/anthropic_manifold_pipeline.py
+      - PIPELINES_API_KEY=${PIPELINES_API_KEY:-0p3n-w3bu!}
+    restart: "no"
+
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: alumnihuddle-webui
+    depends_on:
+      - pipelines
+    # Use Google DNS for better resolution of Supabase
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    volumes:
+      - open-webui:/app/backend/data
+      # Mount our custom backend code for multi-tenancy
+      - ./backend/open_webui/models/tenants.py:/app/backend/open_webui/models/tenants.py:ro
+      - ./backend/open_webui/models/users.py:/app/backend/open_webui/models/users.py:ro
+      - ./backend/open_webui/models/mentors.py:/app/backend/open_webui/models/mentors.py:ro
+      - ./backend/open_webui/middleware:/app/backend/open_webui/middleware:ro
+      - ./backend/open_webui/utils/auth.py:/app/backend/open_webui/utils/auth.py:ro
+      - ./backend/open_webui/env_custom.py:/app/backend/open_webui/env.py:ro
+      - ./backend/open_webui/utils/middleware.py:/app/backend/open_webui/utils/middleware.py:ro
+      - ./backend/open_webui/utils/huddle_context.py:/app/backend/open_webui/utils/huddle_context.py:ro
+      - ./backend/open_webui/routers/tenants.py:/app/backend/open_webui/routers/tenants.py:ro
+      - ./backend/open_webui/routers/mentors.py:/app/backend/open_webui/routers/mentors.py:ro
+      - ./backend/open_webui/routers/auths.py:/app/backend/open_webui/routers/auths.py:ro
+      - ./backend/open_webui/routers/scim.py:/app/backend/open_webui/routers/scim.py:ro
+      - ./backend/open_webui/services:/app/backend/open_webui/services:ro
+      - ./backend/open_webui/internal/db.py:/app/backend/open_webui/internal/db.py:ro
+      - ./backend/open_webui/alumnihuddle_app.py:/app/backend/open_webui/alumnihuddle_app.py:ro
+      - ./backend/open_webui/main.py:/app/backend/open_webui/main.py:ro
+      - ./backend/start_alumnihuddle.sh:/app/backend/start_alumnihuddle.sh:ro
+      # Custom branding assets
+      - ./custom-static/logo.png:/app/backend/open_webui/static/logo.png:ro
+      - ./custom-static/favicon.png:/app/backend/open_webui/static/favicon.png:ro
+      - ./custom-static/favicon-96x96.png:/app/backend/open_webui/static/favicon-96x96.png:ro
+      - ./custom-static/web-app-manifest-192x192.png:/app/backend/open_webui/static/web-app-manifest-192x192.png:ro
+      - ./custom-static/web-app-manifest-512x512.png:/app/backend/open_webui/static/web-app-manifest-512x512.png:ro
+      - ./custom-static/custom.css:/app/backend/open_webui/static/custom.css:ro
+    # Use our custom start script
+    command: ["bash", "/app/backend/start_alumnihuddle.sh"]
+    # Port mapping
+    ports:
+      - "8080:8080"
+    environment:
+      # Database - Supabase via Session pooler (IPv4 compatible)
+      - DATABASE_URL=${DATABASE_URL}
+      # Supabase Config
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      # OpenWebUI Settings
+      - WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY:-alumnihuddle-dev-secret}
+      - WEBUI_AUTH=true
+      - ENV=dev
+      # Branding
+      - WEBUI_NAME=AlumniHuddle
+      # Multi-Tenancy
+      - ENABLE_MULTI_TENANCY=true
+      - BASE_DOMAIN=alumnihuddle.com
+      # Default tenant for localhost testing (remove in production)
+      - DEFAULT_TENANT_SLUG=${DEFAULT_TENANT_SLUG:-holy-cross-mens-lacrosse}
+      # Disable migrations (tables already exist in Supabase)
+      - ENABLE_DB_MIGRATIONS=false
+      # Use NullPool for Supabase free tier (no persistent connections)
+      - DATABASE_POOL_SIZE=0
+      # Disable features that might slow startup
+      - ENABLE_RAG_WEB_SEARCH=false
+      - ENABLE_SEARCH_QUERY=false
+      - OFFLINE_MODE=true
+      - ENABLE_RAG_LOCAL_WEB_FETCH=false
+      - RAG_EMBEDDING_ENGINE=
+      - ENABLE_IMAGE_GENERATION=false
+      # Ollama (optional - for local LLM)
+      - OLLAMA_BASE_URL=http://localhost:11434
+      - ENABLE_OLLAMA_API=false
+      - ENABLE_OPENAI_API=true
+      # Pipelines service for Anthropic
+      - OPENAI_API_BASE_URLS=http://pipelines:9099
+      - OPENAI_API_KEYS=${PIPELINES_API_KEY:-0p3n-w3bu!}
+      # Anthropic API Key
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      # Show logs
+      - LOG_LEVEL=DEBUG
+      # Disable model cache to speed startup
+      - ENABLE_BASE_MODELS_CACHE=false
+      - ENABLE_MODELS_CACHE=false
+    restart: "no"
+
+volumes:
+  open-webui: {}
+  pipelines: {}

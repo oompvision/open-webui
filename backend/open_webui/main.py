@@ -1512,6 +1512,14 @@ async def get_models(
 
     models = get_filtered_models(models, user)
 
+    # AlumniHuddle: Filter models to only show the current huddle's branded model
+    huddle = getattr(request.state, "huddle", None) or getattr(request.state, "tenant", None)
+    if huddle:
+        from open_webui.services.huddle_models import get_huddle_model_id
+        huddle_model_id = get_huddle_model_id(huddle)
+        models = [m for m in models if m.get("id") == huddle_model_id]
+        log.info(f"AlumniHuddle: Filtered to {len(models)} models for huddle {huddle.slug} (looking for {huddle_model_id})")
+
     log.debug(
         f"/api/models returned filtered models accessible to the user: {json.dumps([model.get('id') for model in models])}"
     )
@@ -1578,6 +1586,9 @@ async def chat_completion(
                 raise Exception("Model not found")
 
             model = request.app.state.MODELS[model_id]
+            if model is None:
+                log.error(f"Model {model_id} exists in MODELS but is None")
+                raise Exception("Model configuration error")
             model_info = Models.get_model_by_id(model_id)
 
             # Check if user has access to the model
@@ -1743,7 +1754,9 @@ async def chat_completion(
             finally:
                 raise  # re-raise to ensure proper task cancellation handling
         except Exception as e:
-            log.debug(f"Error processing chat payload: {e}")
+            import traceback
+            log.error(f"Error processing chat payload: {e}")
+            log.error(f"Traceback: {traceback.format_exc()}")
             if metadata.get("chat_id") and metadata.get("message_id"):
                 # Update the chat message with the error
                 try:
@@ -2043,6 +2056,23 @@ async def get_app_config(request: Request):
                     else {}
                 ),
             }
+        ),
+        # AlumniHuddle: Include huddle branding for UI customization
+        **(
+            {
+                "huddle": {
+                    "id": request.state.huddle.id,
+                    "name": request.state.huddle.name,
+                    "slug": request.state.huddle.slug,
+                    "logo_url": request.state.huddle.logo_url,
+                    "cover_photo_url": request.state.huddle.cover_photo_url,
+                    "primary_color": request.state.huddle.primary_color,
+                    "secondary_color": request.state.huddle.secondary_color,
+                    "description": request.state.huddle.description,
+                }
+            }
+            if hasattr(request.state, "huddle") and request.state.huddle
+            else {}
         ),
     }
 

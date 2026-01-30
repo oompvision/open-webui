@@ -67,6 +67,7 @@ from sqlalchemy.orm import Session
 from open_webui.utils.webhook import post_webhook
 from open_webui.utils.access_control import get_permissions, has_permission
 from open_webui.utils.groups import apply_default_group_assignment
+from open_webui.utils.huddle_context import apply_huddle_assignment
 
 from open_webui.utils.redis import get_redis_client
 from open_webui.utils.rate_limit import RateLimiter
@@ -471,6 +472,11 @@ async def ldap_auth(
                         db=db,
                     )
 
+                    # AlumniHuddle: Auto-assign user to huddle based on subdomain
+                    huddle = getattr(request.state, "huddle", None) or getattr(request.state, "tenant", None)
+                    if huddle:
+                        apply_huddle_assignment(huddle.id, user.id, db=db)
+
                 except HTTPException:
                     raise
                 except Exception as err:
@@ -800,6 +806,11 @@ async def signup(
                 db=db,
             )
 
+            # AlumniHuddle: Auto-assign user to huddle based on subdomain
+            huddle = getattr(request.state, "huddle", None) or getattr(request.state, "tenant", None)
+            if huddle:
+                apply_huddle_assignment(huddle.id, user.id, db=db)
+
             return {
                 "token": token,
                 "token_type": "Bearer",
@@ -941,6 +952,11 @@ async def add_user(
                 user.id,
                 db=db,
             )
+
+            # AlumniHuddle: Auto-assign user to huddle based on subdomain
+            huddle = getattr(request.state, "huddle", None) or getattr(request.state, "tenant", None)
+            if huddle:
+                apply_huddle_assignment(huddle.id, user.id, db=db)
 
             token = create_token(data={"id": user.id})
             return {

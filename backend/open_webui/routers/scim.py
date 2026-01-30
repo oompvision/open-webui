@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field, ConfigDict
 
 from open_webui.models.users import Users, UserModel
 from open_webui.models.groups import Groups, GroupModel
+from open_webui.utils.huddle_context import apply_huddle_assignment
 from open_webui.utils.auth import (
     get_admin_user,
     get_current_user,
@@ -587,6 +588,11 @@ async def create_user(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create user",
         )
+
+    # AlumniHuddle: Auto-assign user to huddle based on subdomain (if available)
+    huddle = getattr(request.state, "huddle", None) or getattr(request.state, "tenant", None)
+    if huddle:
+        apply_huddle_assignment(huddle.id, new_user.id, db=db)
 
     return user_to_scim(new_user, request, db=db)
 

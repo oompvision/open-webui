@@ -1,0 +1,28 @@
+/*
+ * AlumniHuddle Custom CSS
+ *
+ * This file loads huddle-specific branding and contains base styles.
+ * Text is kept black throughout - only buttons use huddle colors.
+ */
+
+/* Import dynamic huddle branding CSS */
+@import url("/api/v1/tenants/branding.css");
+
+/*
+ * AlumniHuddle base styles
+ * Minimal branding - black text, huddle-colored buttons only
+ */
+
+/* Primary send/submit buttons use huddle color */
+button[type="submit"].bg-black,
+button[aria-label="Send message"],
+button.send-button {
+    background-color: var(--huddle-primary, #000000) !important;
+}
+
+button[type="submit"].bg-black:hover,
+button[aria-label="Send message"]:hover,
+button.send-button:hover {
+    background-color: var(--huddle-primary, #000000) !important;
+    filter: brightness(0.9);
+}

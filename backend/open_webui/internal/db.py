@@ -29,25 +29,49 @@ log = logging.getLogger(__name__)
 
 
 class JSONField(types.TypeDecorator):
+    """
+    Custom JSON field that handles both TEXT and JSONB columns.
+
+    When used with PostgreSQL JSONB columns, psycopg2 automatically parses
+    the JSON and returns a dict. This class handles that case by checking
+    if the value is already parsed.
+    """
     impl = types.Text
     cache_ok = True
 
     def process_bind_param(self, value: Optional[_T], dialect: Dialect) -> Any:
+        if value is None:
+            return None
+        # If already a string, return as-is (shouldn't happen, but be safe)
+        if isinstance(value, str):
+            return value
         return json.dumps(value)
 
     def process_result_value(self, value: Optional[_T], dialect: Dialect) -> Any:
-        if value is not None:
-            return json.loads(value)
+        if value is None:
+            return None
+        # If already a dict/list (JSONB column auto-parsed by psycopg2), return as-is
+        if isinstance(value, (dict, list)):
+            return value
+        # Otherwise parse the JSON string
+        return json.loads(value)
 
     def copy(self, **kw: Any) -> Self:
         return JSONField(self.impl.length)
 
     def db_value(self, value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value
         return json.dumps(value)
 
     def python_value(self, value):
-        if value is not None:
-            return json.loads(value)
+        if value is None:
+            return None
+        if isinstance(value, (dict, list)):
+            return value
+        return json.loads(value)
 
 
 # Workaround to handle the peewee migration

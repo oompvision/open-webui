@@ -51,6 +51,9 @@ class User(Base):
     username = Column(String(50), nullable=True)
     role = Column(String)
 
+    # Multi-tenancy support: links user to a specific tenant (e.g., university team)
+    tenant_id = Column(String, nullable=True)
+
     name = Column(String)
 
     profile_image_url = Column(Text)
@@ -82,6 +85,9 @@ class UserModel(BaseModel):
     email: str
     username: Optional[str] = None
     role: str = "pending"
+
+    # Multi-tenancy support
+    tenant_id: Optional[str] = None
 
     name: str
 
